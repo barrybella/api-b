@@ -3,23 +3,25 @@ var User = require('../models/Utilisateur');
 require('dotenv').config();
 var stripe = require('stripe')
 const logger = require('../logger');
-const apiKey ='pk_test_51Q1yhoQHJrpVHtr3afeghhDji3SuFGhtG4luIl7oW2VRh3LjY4guFupinTmcjRPux8LUyw2F2eOi1rG5fdg8YGeH00gtoJLYou'
-const secretKey ='sk_test_51Q1yhoQHJrpVHtr3S1XQ5MrQWjLTzZcaEuCQvIOkwHU8pNGC6IzifUheGPVWQAKede3xgLXdgxEwJwreF1rGHzBa00it6cYF1E'
-const { trace } = require('@opentelemetry/api');
+
+//const { trace } = require('@opentelemetry/api');
 const { diag, DiagConsoleLogger, DiagLogLevel } = require('@opentelemetry/api');
 const { NodeTracerProvider } = require('@opentelemetry/node');
 const { SimpleSpanProcessor } = require('@opentelemetry/tracing');
 const { ConsoleSpanExporter } = require('@opentelemetry/tracing');
-const winston = require('winston');
-
-// Setup OpenTelemetry
-
 //stripe.setApiKey(apiKey, secretKey)
+const LokiTransport = require('winston-loki');
+//diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
+const provider = new NodeTracerProvider();
+provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter()));
+provider.register();
+
+const tracer = provider.getTracer('service-a');
 
 
   module.exports.payement = async function(req, res){
-   
+    console.log("barry");
     try{
 
 
@@ -55,11 +57,19 @@ module.exports.allUsers = async function(req, res){
               const requestId = req.headers['x-request-id'] || 'generated-request-id';
               currentSpan.setAttribute('http.request_id', requestId);
             }*/
-           
-            logger.info({
-                service: 'service-a',
+            const span = tracer.startSpan('incoming_request', {
+                attributes: {
+                  'http.method': req.method,
+                  'http.url': req.url,
+                  'service.name': 'service-b',
+                  'request.id': req.rid,
+                }
+              });
+            
+            logger.info('Request received', {
+                service: 'services-b',
                 timestamp: new Date().toISOString(),
-                level: 'info',
+                level: 'infos',
                 requestId: req.rid,
                 method: req.method,
                 url: req.url,
@@ -70,7 +80,11 @@ module.exports.allUsers = async function(req, res){
                 timestamp: new Date().toISOString(),
                 requestId: req.headers['x-request-id'], // ID de requête
             });*/
-            
+           /* logger.add(new LokiTransport({
+                host: 'http://loki:3100/loki/api/v1/push',
+                labels: { service: 'service-a' },
+              }));*/
+              
             return res.status(200).json(users);
         }
 

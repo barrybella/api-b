@@ -1,18 +1,24 @@
 const { createLogger, format, transports } = require('winston');
 const { diag } = require('@opentelemetry/api');
 
+const winston = require('winston');
+const LokiTransport = require('winston-loki'); // Assurez-vous que l'importation est correcte
 
 // Configure Winston logger
-const logger = createLogger({
+const logger = winston.createLogger({
   level: 'info',
-  format: format.combine(
-    format.timestamp(),
-    format.json()
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'isoDateTime' }), // Ajouter un timestamp ISO
+    winston.format.json() // Formater les logs en JSON
   ),
-  defaultMeta: { service: 'service-b' },
   transports: [
-    new transports.Console()
-  ]
+    new winston.transports.Console(),
+    new LokiTransport({
+      host: 'http://loki:3100', // Ou l'URL de votre serveur Loki
+      json: true,
+      labels: { services: 'service-b' },
+    }),
+  ],
 });
 
 // Function to log OpenTelemetry diagnostics
@@ -23,18 +29,8 @@ diag.setLogger({
   debug: (msg) => logger.debug(msg)
 });
 
-module.exports = logger;
+module.exports =  logger;
 
 
 
-/*const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.json(),
-    defaultMeta: { service: 'your-service-name' },
-    transports: [
-        new winston.transports.Console(),
-        // Vous pouvez ajouter d'autres transports (fichiers, base de données, etc.)
-    ],
-});
 
-module.exports = logger;*/
